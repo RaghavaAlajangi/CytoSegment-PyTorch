@@ -6,6 +6,7 @@ class EarlyStopping:
     EarlyStopping stops the training if validation loss does not improve
     after a given patience.
     """
+
     def __init__(self, patience=10):
         """
         Parameters
@@ -26,8 +27,10 @@ class EarlyStopping:
             self.best_score = score
         elif score < self.best_score:
             self.counter += 1
-            print(f'EarlyStopping counter: {self.counter} '
-                  f'out of {self.patience}')
+            print(
+                f"EarlyStopping counter: {self.counter} "
+                f"out of {self.patience}"
+            )
             if self.counter >= self.patience:
                 self.should_stop = True
         else:

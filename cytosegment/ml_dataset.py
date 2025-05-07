@@ -1,14 +1,14 @@
-from pathlib import Path
 import random
 import zipfile
+from pathlib import Path
 
 import numpy as np
-from PIL import Image
 import torch
-from torch import mean as tmean
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms as tt
 import torchvision.transforms.functional as tf
+from PIL import Image
+from torch import mean as tmean
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms as tt
 
 
 def get_dataloaders_with_params(params):
@@ -34,23 +34,42 @@ def get_dataloaders_with_params(params):
 
     train_data_path, test_data_path = unzip_data(data_path)
 
-    train_images, train_masks = read_data(train_data_path, seed=random_seed,
-                                          shuffle=True)
+    train_images, train_masks = read_data(
+        train_data_path, seed=random_seed, shuffle=True
+    )
     test_images, test_masks = read_data(test_data_path, seed=42, shuffle=False)
 
-    train_imgs, valid_imgs, train_msks, valid_msks = split_data(train_images,
-                                                                train_masks,
-                                                                valid_size)
+    train_imgs, valid_imgs, train_msks, valid_msks = split_data(
+        train_images, train_masks, valid_size
+    )
 
     # Create training dataset instance
-    train_dataset = UNetDataset(train_imgs, train_msks, target_shape=img_size,
-                                augment=augmentation, mean=mean, std=std)
+    train_dataset = UNetDataset(
+        train_imgs,
+        train_msks,
+        target_shape=img_size,
+        augment=augmentation,
+        mean=mean,
+        std=std,
+    )
     # Create validation dataset instance and make sure augmentation is False
-    valid_dataset = UNetDataset(valid_imgs, valid_msks, target_shape=img_size,
-                                augment=False, mean=mean, std=std)
+    valid_dataset = UNetDataset(
+        valid_imgs,
+        valid_msks,
+        target_shape=img_size,
+        augment=False,
+        mean=mean,
+        std=std,
+    )
     # Create testing dataset instance
-    test_dataset = UNetDataset(test_images, test_masks, target_shape=img_size,
-                               augment=False, mean=mean, std=std)
+    test_dataset = UNetDataset(
+        test_images,
+        test_masks,
+        target_shape=img_size,
+        augment=False,
+        mean=mean,
+        std=std,
+    )
 
     data_dict = {
         "train": train_dataset,
@@ -86,25 +105,28 @@ def verify_image_file(file_path):
         with Image.open(file_path) as img:
             img.verify()
         return True
-    except (IOError, SyntaxError) as e:
+    except (IOError, SyntaxError):
         print(f"Excluding corrupted file: ({file_path})")
         return False
 
 
 def intersection_of_images_and_masks(image_paths, mask_paths):
     # Convert paths to sets of filenames for intersection
-    image_filenames = {img.stem for img in
-                       image_paths}  # .stem gets the filename without extension
+    image_filenames = {
+        img.stem for img in image_paths
+    }  # .stem gets the filename without extension
     mask_filenames = {mask.stem for mask in mask_paths}
 
     # Find the common files (intersection)
     common_filenames = image_filenames & mask_filenames
 
     # Filter the images and masks based on the intersection
-    filtered_images = [img for img in image_paths if
-                       img.stem in common_filenames]
-    filtered_masks = [mask for mask in mask_paths if
-                      mask.stem in common_filenames]
+    filtered_images = [
+        img for img in image_paths if img.stem in common_filenames
+    ]
+    filtered_masks = [
+        mask for mask in mask_paths if mask.stem in common_filenames
+    ]
 
     return filtered_images, filtered_masks
 
@@ -123,11 +145,14 @@ def read_data(data_path, seed=42, shuffle=False):
     valid_msk_list = [msk for msk in msk_list if verify_image_file(msk)]
 
     if len(valid_img_list) != len(valid_msk_list):
-        print(f"Warning: After verification, the number of valid images "
-              f"({len(valid_img_list)}) and masks ({len(valid_msk_list)}) is "
-              f"different.")
+        print(
+            f"Warning: After verification, the number of valid images "
+            f"({len(valid_img_list)}) and masks ({len(valid_msk_list)}) is "
+            f"different."
+        )
         valid_img_list, valid_msk_list = intersection_of_images_and_masks(
-            valid_img_list, valid_msk_list)
+            valid_img_list, valid_msk_list
+        )
         print(f"Using {len(valid_img_list)} common valid images and masks.")
 
     if shuffle:
@@ -173,13 +198,13 @@ def create_dataloaders(data_dict, batch_size, num_workers=0):
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=True,
-            shuffle=True if k == "train" else False
+            shuffle=True if k == "train" else False,
         )
     return dataloader_dict
 
 
 def compute_mean_std(data_path, img_size):
-    """ Computes the mean and standard deviation of a dataset.
+    """Computes the mean and standard deviation of a dataset.
     Parameters
     ----------
     data_path: str or Path
@@ -193,9 +218,11 @@ def compute_mean_std(data_path, img_size):
     The mean and standard deviation of the training data
     """
     images, masks = read_data(data_path, seed=42, shuffle=False)
-    data_dict = {"data": UNetDataset(images, masks, target_shape=img_size,
-                                     augment=False)
-                 }
+    data_dict = {
+        "data": UNetDataset(
+            images, masks, target_shape=img_size, augment=False
+        )
+    }
 
     # Training data will be shuffled
     dataloader_dict = create_dataloaders(data_dict, batch_size=8)
@@ -204,27 +231,35 @@ def compute_mean_std(data_path, img_size):
 
     for imgs, _ in dataloader_dict["data"]:
         channel_sum += tmean(imgs, dim=[0, 2, 3])
-        channel_square_sum += tmean(imgs ** 2, dim=[0, 2, 3])
+        channel_square_sum += tmean(imgs**2, dim=[0, 2, 3])
 
         batch_counter += 1
 
     mean = float(channel_sum / batch_counter)
-    std = float((channel_square_sum / batch_counter - mean ** 2) ** 0.5)
+    std = float((channel_square_sum / batch_counter - mean**2) ** 0.5)
     return mean, std
 
 
 class UNetDataset(Dataset):
-    """ Create torch dataset instance for training"""
+    """Create torch dataset instance for training"""
 
-    def __init__(self, images, masks, target_shape, augment=False,
-                 min_max=False, mean=None, std=None):
+    def __init__(
+        self,
+        images,
+        masks,
+        target_shape,
+        augment=False,
+        min_max=False,
+        mean=None,
+        std=None,
+    ):
         self.images = images
         self.masks = masks
         self.target_shape = target_shape
         self.augment = augment
         self.min_max = min_max
-        self.mean = 0. if mean is None else mean
-        self.std = 1. if std is None else std
+        self.mean = 0.0 if mean is None else mean
+        self.std = 1.0 if std is None else std
 
     @staticmethod
     def min_max_norm(img):
@@ -248,33 +283,36 @@ class UNetDataset(Dataset):
         if height_diff > 0:
             # Cropping
             hcorr = abs(height_diff) // 2
-            hcorr_img = image[hcorr: height - hcorr, :]
-            hcorr_msk = mask[hcorr: height - hcorr, :]
+            hcorr_img = image[hcorr : height - hcorr, :]
+            hcorr_msk = mask[hcorr : height - hcorr, :]
 
         else:
             # Padding
             hpad = abs(height_diff) // 2
-            hcorr_img = np.full((target_height, width), pad_value,
-                                dtype=np.float32)
+            hcorr_img = np.full(
+                (target_height, width), pad_value, dtype=np.float32
+            )
             hcorr_msk = np.zeros((target_height, width), dtype=np.float32)
-            hcorr_img[hpad:hpad + height, :] = hcorr_img
-            hcorr_msk[hpad:hpad + height, :] = hcorr_msk
+            hcorr_img[hpad : hpad + height, :] = hcorr_img
+            hcorr_msk[hpad : hpad + height, :] = hcorr_msk
 
         # Adjust image width (crop or pad according to the target width)
         if width_diff > 0:
             # Cropping
             wcorr = abs(width_diff) // 2
-            wcorr_img = hcorr_img[:, wcorr: width - wcorr]
-            wcorr_msk = hcorr_msk[:, wcorr: width - wcorr]
+            wcorr_img = hcorr_img[:, wcorr : width - wcorr]
+            wcorr_msk = hcorr_msk[:, wcorr : width - wcorr]
         else:
             # Padding
             wpad = abs(width_diff) // 2
-            wcorr_img = np.full((target_height, target_width), pad_value,
-                                dtype=np.float32)
-            wcorr_msk = np.zeros((target_height, target_width),
-                                 dtype=np.float32)
-            wcorr_img[:, wpad:wpad + width] = hcorr_img
-            wcorr_msk[:, wpad:wpad + width] = hcorr_msk
+            wcorr_img = np.full(
+                (target_height, target_width), pad_value, dtype=np.float32
+            )
+            wcorr_msk = np.zeros(
+                (target_height, target_width), dtype=np.float32
+            )
+            wcorr_img[:, wpad : wpad + width] = hcorr_img
+            wcorr_msk[:, wpad : wpad + width] = hcorr_msk
 
         return wcorr_img, wcorr_msk
 
@@ -324,8 +362,9 @@ class UNetDataset(Dataset):
         pad_value = image.mean()
 
         # Resize the image and mask sample according to the target shape
-        resized_img, resized_msk = self.crop_pad_sample(image, mask,
-                                                        pad_value=pad_value)
+        resized_img, resized_msk = self.crop_pad_sample(
+            image, mask, pad_value=pad_value
+        )
         # Augmentation
         aug_img, aug_msk = self.custom_transform(resized_img, resized_msk)
 

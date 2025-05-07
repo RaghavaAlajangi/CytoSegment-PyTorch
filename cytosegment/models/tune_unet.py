@@ -8,22 +8,40 @@ class AttentionBlock(nn.Module):
         super(AttentionBlock, self).__init__()
 
         self.W_g = nn.Sequential(
-            nn.Conv2d(F_g, F_int, kernel_size=(1, 1), stride=(1, 1),
-                      padding=0, bias=True),
-            nn.BatchNorm2d(F_int)
+            nn.Conv2d(
+                F_g,
+                F_int,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                padding=0,
+                bias=True,
+            ),
+            nn.BatchNorm2d(F_int),
         )
 
         self.W_x = nn.Sequential(
-            nn.Conv2d(F_l, F_int, kernel_size=(1, 1), stride=(1, 1),
-                      padding=0, bias=True),
-            nn.BatchNorm2d(F_int)
+            nn.Conv2d(
+                F_l,
+                F_int,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                padding=0,
+                bias=True,
+            ),
+            nn.BatchNorm2d(F_int),
         )
 
         self.psi = nn.Sequential(
-            nn.Conv2d(F_int, 1, kernel_size=(1, 1), stride=(1, 1),
-                      padding=0, bias=True),
+            nn.Conv2d(
+                F_int,
+                1,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                padding=0,
+                bias=True,
+            ),
             nn.BatchNorm2d(1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
         # Select the activation function
@@ -32,8 +50,9 @@ class AttentionBlock(nn.Module):
         else:
             self.activation = nn.LeakyReLU(0.1, inplace=True)
 
-        self.up = nn.Upsample(mode="bilinear", scale_factor=2,
-                              align_corners=True)
+        self.up = nn.Upsample(
+            mode="bilinear", scale_factor=2, align_corners=True
+        )
 
     def forward(self, g, x):
         g1 = self.W_g(g)
@@ -47,8 +66,16 @@ class AttentionBlock(nn.Module):
 class EncodeBlock(nn.Module):
     """(CNN => BN => ReLU) * 2"""
 
-    def __init__(self, in_size, out_size, conv_block, dilation,
-                 dropout, batch_norm, relu):
+    def __init__(
+        self,
+        in_size,
+        out_size,
+        conv_block,
+        dilation,
+        dropout,
+        batch_norm,
+        relu,
+    ):
         super(EncodeBlock, self).__init__()
 
         # Create dilation kernel
@@ -61,8 +88,13 @@ class EncodeBlock(nn.Module):
 
         # Create the block with a CNN layer
         block = [
-            nn.Conv2d(in_size, out_size, kernel_size=(3, 3),
-                      padding=dilation, dilation=dilation_kernel)
+            nn.Conv2d(
+                in_size,
+                out_size,
+                kernel_size=(3, 3),
+                padding=dilation,
+                dilation=dilation_kernel,
+            )
         ]
         # Add a batch normalization layer
         if batch_norm:
@@ -72,8 +104,13 @@ class EncodeBlock(nn.Module):
         if conv_block == "double":
             # Add one more CNN layer if conv_block is 'double'
             block.append(
-                nn.Conv2d(out_size, out_size, kernel_size=(3, 3),
-                          padding=dilation, dilation=dilation_kernel)
+                nn.Conv2d(
+                    out_size,
+                    out_size,
+                    kernel_size=(3, 3),
+                    padding=dilation,
+                    dilation=dilation_kernel,
+                )
             )
             # Add a batch normalization layer
             if batch_norm:
@@ -93,26 +130,39 @@ class EncodeBlock(nn.Module):
 
 
 class DecodeBlock(nn.Module):
-    def __init__(self, in_size, out_size, up_mode, conv_block, dilation,
-                 dropout, batch_norm, relu, attention):
+    def __init__(
+        self,
+        in_size,
+        out_size,
+        up_mode,
+        conv_block,
+        dilation,
+        dropout,
+        batch_norm,
+        relu,
+        attention,
+    ):
         super(DecodeBlock, self).__init__()
         self.attention = attention
-        self.conv_block = EncodeBlock(in_size, out_size, conv_block,
-                                      dilation, dropout, batch_norm, relu)
+        self.conv_block = EncodeBlock(
+            in_size, out_size, conv_block, dilation, dropout, batch_norm, relu
+        )
 
-        self.attn_block = AttentionBlock(F_g=out_size, F_l=out_size,
-                                         F_int=out_size // 2, relu=relu)
+        self.attn_block = AttentionBlock(
+            F_g=out_size, F_l=out_size, F_int=out_size // 2, relu=relu
+        )
 
         if up_mode == "upconv":
             self.up = nn.Sequential(
-                nn.ConvTranspose2d(in_size, out_size,
-                                   kernel_size=(2, 2),
-                                   stride=(2, 2))
+                nn.ConvTranspose2d(
+                    in_size, out_size, kernel_size=(2, 2), stride=(2, 2)
+                )
             )
         elif up_mode == "upsample":
             self.up = nn.Sequential(
-                nn.Upsample(mode="bilinear", scale_factor=2,
-                            align_corners=True),
+                nn.Upsample(
+                    mode="bilinear", scale_factor=2, align_corners=True
+                ),
                 nn.Conv2d(in_size, out_size, kernel_size=(1, 1)),
             )
 
@@ -133,9 +183,20 @@ class DecodeBlock(nn.Module):
 
 
 class TunableUNet(nn.Module):
-    def __init__(self, in_channels=1, out_classes=1, conv_block="double",
-                 depth=5, filters=6, dilation=1, dropout=0, up_mode="upconv",
-                 batch_norm=True, attention=False, relu=True):
+    def __init__(
+        self,
+        in_channels=1,
+        out_classes=1,
+        conv_block="double",
+        depth=5,
+        filters=6,
+        dilation=1,
+        dropout=0,
+        up_mode="upconv",
+        batch_norm=True,
+        attention=False,
+        relu=True,
+    ):
         """
         Implementation of U-Net: Convolutional Networks for Biomedical
         Image Segmentation (Ronneberger et al., 2015)
@@ -182,8 +243,15 @@ class TunableUNet(nn.Module):
         for i in range(depth + 1):
             out_channels = 2 ** (filters + i)
             self.encoder.append(
-                EncodeBlock(prev_channels, out_channels, conv_block,
-                            dilation, dropout, batch_norm, relu)
+                EncodeBlock(
+                    prev_channels,
+                    out_channels,
+                    conv_block,
+                    dilation,
+                    dropout,
+                    batch_norm,
+                    relu,
+                )
             )
             prev_channels = out_channels
 
@@ -192,9 +260,17 @@ class TunableUNet(nn.Module):
         for i in reversed(range(depth)):
             out_channels = 2 ** (filters + i)
             self.decoder.append(
-                DecodeBlock(prev_channels, out_channels,
-                            up_mode, conv_block, dilation,
-                            dropout, batch_norm, relu, attention)
+                DecodeBlock(
+                    prev_channels,
+                    out_channels,
+                    up_mode,
+                    conv_block,
+                    dilation,
+                    dropout,
+                    batch_norm,
+                    relu,
+                    attention,
+                )
             )
             prev_channels = out_channels
 

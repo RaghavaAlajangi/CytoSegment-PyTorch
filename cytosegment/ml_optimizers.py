@@ -1,4 +1,4 @@
-from torch.optim import Adam, SGD
+from torch.optim import SGD, Adam
 
 
 def get_optimizer_with_params(params, model):
@@ -14,5 +14,4 @@ def get_optimizer_with_params(params, model):
     if optimizer_type.lower() == "sgd":
         assert {"momentum"}.issubset(optimizer_params)
         momentum = optimizer_params.get("momentum")
-        return SGD(model.parameters(), lr=learn_rate,
-                   momentum=momentum)
+        return SGD(model.parameters(), lr=learn_rate, momentum=momentum)

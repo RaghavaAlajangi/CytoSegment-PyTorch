@@ -8,12 +8,13 @@ from .ml_trainer import SetupTrainer
 
 
 @click.command(help="Script to start the training")
-@click.option("--params_path",
-              type=click.Path(exists=True,
-                              dir_okay=False,
-                              resolve_path=True,
-                              path_type=Path),
-              help="Path to params file (.yaml)")
+@click.option(
+    "--params_path",
+    type=click.Path(
+        exists=True, dir_okay=False, resolve_path=True, path_type=Path
+    ),
+    help="Path to params file (.yaml)",
+)
 def main(params_path):
     params = yaml.safe_load(open(params_path))
     print("=" * 80)

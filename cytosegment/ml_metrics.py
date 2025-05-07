@@ -98,7 +98,7 @@ class PixelHit(nn.Module):
         for m, d in zip(targets, pixel_diff):
             white_px_tar = len(torch.where(m == 1)[0])
             white_px_diff = len(torch.where(d == 1)[0])
-            hit_pixel = (white_px_tar - white_px_diff)
+            hit_pixel = white_px_tar - white_px_diff
             hit_pixel_ratio = hit_pixel / white_px_tar
             hit_px_list.append(hit_pixel_ratio)
         return hit_px_list

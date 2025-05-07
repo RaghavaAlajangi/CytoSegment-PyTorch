@@ -1,25 +1,24 @@
 import csv
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
-import time
 
 import numpy as np
-from matplotlib import pyplot as plt
 import torch
+import yaml
+from matplotlib import pyplot as plt
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.tensorboard import SummaryWriter
-import yaml
 
+from .divided_group_inference import div_inference
 from .early_stopping import EarlyStopping
 from .ml_criterions import get_criterion_with_params
 from .ml_dataset import get_dataloaders_with_params
+from .ml_inferece import inference
 from .ml_metrics import get_metric_with_params
-from .models import get_model_with_params
 from .ml_optimizers import get_optimizer_with_params
 from .ml_schedulers import get_scheduler_with_params
-from .ml_inferece import inference
-from .models import convert_torch_to_onnx, summary
-from .divided_group_inference import div_inference
+from .models import convert_torch_to_onnx, get_model_with_params, summary
 
 save_valid_results = False
 
@@ -31,8 +30,9 @@ def keep_file_delete_others(folder_path, file_to_keep):
             file.unlink()
 
 
-def plot_valid_results(results_path, n, image_torch, target_torch,
-                       predict_torch):
+def plot_valid_results(
+    results_path, n, image_torch, target_torch, predict_torch
+):
     results_path = results_path / "valid_results"
     results_path.mkdir(parents=True, exist_ok=True)
 
@@ -60,21 +60,22 @@ def plot_valid_results(results_path, n, image_torch, target_torch,
 
 
 class SetupTrainer:
-    def __init__(self,
-                 model,
-                 dataloaders,
-                 criterion,
-                 metric,
-                 optimizer,
-                 scheduler,
-                 max_epochs=100,
-                 use_cuda=False,
-                 min_ckp_acc=0.85,
-                 early_stop_patience=None,
-                 path_out="experiments",
-                 tensorboard=False,
-                 init_from_ckp=None
-                 ):
+    def __init__(
+        self,
+        model,
+        dataloaders,
+        criterion,
+        metric,
+        optimizer,
+        scheduler,
+        max_epochs=100,
+        use_cuda=False,
+        min_ckp_acc=0.85,
+        early_stop_patience=None,
+        path_out="experiments",
+        tensorboard=False,
+        init_from_ckp=None,
+    ):
         self.model = model
         self.dataloaders = dataloaders
         self.criterion = criterion
@@ -150,10 +151,21 @@ class SetupTrainer:
         with open(out_file_path, "w") as file:
             yaml.dump(params, file, sort_keys=False)
 
-        return cls(model, dataloaders, criterion, metric, optimizer,
-                   scheduler, max_epochs, use_cuda, min_ckp_acc,
-                   early_stop_patience, str(exp_path), tensorboard,
-                   init_from_ckp)
+        return cls(
+            model,
+            dataloaders,
+            criterion,
+            metric,
+            optimizer,
+            scheduler,
+            max_epochs,
+            use_cuda,
+            min_ckp_acc,
+            early_stop_patience,
+            str(exp_path),
+            tensorboard,
+            init_from_ckp,
+        )
 
     def restore_checkpoint(self, ckp_path):
         ckp = torch.load(ckp_path, map_location=self.device)
@@ -214,8 +226,9 @@ class SetupTrainer:
 
                 if save_valid_results:
                     if mode.lower() == "valid" and n == 5:
-                        plot_valid_results(self.exp_path, epoch, images,
-                                           masks, predicts)
+                        plot_valid_results(
+                            self.exp_path, epoch, images, masks, predicts
+                        )
 
         # predict_tensor = torch.cat(predict_list, dim=0)
         # mask_tensor = torch.cat(mask_list, dim=0)
@@ -245,13 +258,22 @@ class SetupTrainer:
         plt.figure(figsize=(14, 7), facecolor=(1, 1, 1))
         plt.rc("grid", linestyle="--", color="lightgrey")
         plt.subplot(121)
-        plt.plot(epoch, train_acc, color="red", label="Train accuracy",
-                 zorder=1)
-        plt.plot(epoch, val_acc, color="green", label="Valid accuracy",
-                 zorder=2)
+        plt.plot(
+            epoch, train_acc, color="red", label="Train accuracy", zorder=1
+        )
+        plt.plot(
+            epoch, val_acc, color="green", label="Valid accuracy", zorder=2
+        )
         if len(ckp_epochs) > 1:
-            plt.scatter(ckp_epochs, ckp_val_acc, c="blue", s=20, marker="x",
-                        label=f"Saved_ckp(>={self.min_ckp_acc:.2f})", zorder=3)
+            plt.scatter(
+                ckp_epochs,
+                ckp_val_acc,
+                c="blue",
+                s=20,
+                marker="x",
+                label=f"Saved_ckp(>={self.min_ckp_acc:.2f})",
+                zorder=3,
+            )
         plt.legend(loc="lower right")
         plt.title("Accuracy plot")
         plt.xlabel("Epochs")
@@ -262,8 +284,15 @@ class SetupTrainer:
         plt.plot(epoch, train_loss, color="red", label="Train loss", zorder=1)
         plt.plot(epoch, val_loss, color="green", label="Valid loss", zorder=2)
         if len(early_stop_epoch) == 1:
-            plt.scatter(early_stop_epoch, ckp_val_loss, c="blue", s=20,
-                        marker="x", label="Early_stopping", zorder=3)
+            plt.scatter(
+                early_stop_epoch,
+                ckp_val_loss,
+                c="blue",
+                s=20,
+                marker="x",
+                label="Early_stopping",
+                zorder=3,
+            )
         plt.legend(loc="upper right")
         plt.title("Loss plot")
         plt.xlabel("Epochs")
@@ -275,8 +304,10 @@ class SetupTrainer:
     def print_epoch_logs(self, epoch_log):
         epoch, dynamic_lr, train_loss, train_acc, val_loss, val_acc = epoch_log
         print(f"[Epochs-{epoch}/{self.max_epochs} | lr:{dynamic_lr}]:")
-        print(f"[Train_loss:{train_loss:.4f} | Train_acc:{train_acc:.4f} | "
-              f"Val_loss:{val_loss:.4f} | Val_acc:{val_acc:.4f}]")
+        print(
+            f"[Train_loss:{train_loss:.4f} | Train_acc:{train_acc:.4f} | "
+            f"Val_loss:{val_loss:.4f} | Val_acc:{val_acc:.4f}]"
+        )
 
     def save_checkpoint(self, new_ckp_name, mode="jit"):
         # Model meta data
@@ -284,7 +315,7 @@ class SetupTrainer:
             "image_shape": self.dataloaders["train"].dataset.target_shape,
             "mean": self.dataloaders["train"].dataset.mean,
             "std": self.dataloaders["train"].dataset.std,
-            "padding_ufunc": "np.mean"
+            "padding_ufunc": "np.mean",
         }
 
         # make sure model is in eval mode
@@ -302,10 +333,14 @@ class SetupTrainer:
             torch_dir = self.ckp_path / "torch_original"
             torch_dir.mkdir(parents=True, exist_ok=True)
             org_path = str(torch_dir) + f"/{new_ckp_name}_org.ckp"
-            torch.save({"model_state_dict": model.state_dict(),
-                        "optimizer_state_dict": self.optimizer.state_dict(),
-                        "model_instance": model
-                        }, org_path)
+            torch.save(
+                {
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": self.optimizer.state_dict(),
+                    "model_instance": model,
+                },
+                org_path,
+            )
 
     def add_graph_tb(self):
         dataiter = iter(self.dataloaders["train"])
@@ -321,7 +356,7 @@ class SetupTrainer:
         score_dict = {
             "img_path": scores[-1],
             "iou_scores": scores[1],
-            "dice_scores": scores[2]
+            "dice_scores": scores[2],
         }
         with open(self.exp_path / "test_scores.csv", "w", newline="") as f:
             writer = csv.writer(f)
@@ -346,42 +381,55 @@ class SetupTrainer:
             "val_loss": [],
             "train_loss": [],
             "dynamicLR": [],
-            "early_stop": []
+            "early_stop": [],
         }
         start_time = time.time()
         for epoch in range(1, self.max_epochs + 1):
-            train_avg_loss, train_avg_acc = self.epoch_runner(epoch,
-                                                              mode="train")
+            train_avg_loss, train_avg_acc = self.epoch_runner(
+                epoch, mode="train"
+            )
             val_avg_loss, val_avg_acc = self.epoch_runner(epoch, mode="valid")
             val_avg_acc_list.append(val_avg_acc)
-            dynamic_lr = [group["lr"] for group in
-                          self.optimizer.param_groups][0]
+            dynamic_lr = [
+                group["lr"] for group in self.optimizer.param_groups
+            ][0]
             train_logs["epochs"] = self.max_epochs
             train_logs["dynamicLR"].append(dynamic_lr)
             train_logs["train_loss"].append(train_avg_loss)
             train_logs["train_acc"].append(train_avg_acc)
             train_logs["val_loss"].append(val_avg_loss)
             train_logs["val_acc"].append(val_avg_acc)
-            epoch_log = [epoch, dynamic_lr, train_avg_loss,
-                         train_avg_acc, val_avg_loss, val_avg_acc]
+            epoch_log = [
+                epoch,
+                dynamic_lr,
+                train_avg_loss,
+                train_avg_acc,
+                val_avg_loss,
+                val_avg_acc,
+            ]
             self.print_epoch_logs(epoch_log)
 
             # Tensorboard tracking loss and accuracies
             if self.tensorboard:
-                self.writer.add_scalars("Loss Plot (Train vs Valid)",
-                                        {"Train": train_avg_loss,
-                                         "Valid": val_avg_loss},
-                                        epoch)
-                self.writer.add_scalars("Accuracy Plot (Train vs Valid)",
-                                        {"Train": train_avg_acc,
-                                         "Valid": val_avg_acc},
-                                        epoch)
+                self.writer.add_scalars(
+                    "Loss Plot (Train vs Valid)",
+                    {"Train": train_avg_loss, "Valid": val_avg_loss},
+                    epoch,
+                )
+                self.writer.add_scalars(
+                    "Accuracy Plot (Train vs Valid)",
+                    {"Train": train_avg_acc, "Valid": val_avg_acc},
+                    epoch,
+                )
 
             if val_avg_acc > self.min_ckp_acc and val_avg_acc == max(
-                    val_avg_acc_list):
-                new_ckp_name = f"/E{epoch}_trainAcc_" \
-                               f"{int(train_avg_acc * 1e4)}_validAcc_" \
-                               f"{int(val_avg_acc * 1e4)}"
+                val_avg_acc_list
+            ):
+                new_ckp_name = (
+                    f"/E{epoch}_trainAcc_"
+                    f"{int(train_avg_acc * 1e4)}_validAcc_"
+                    f"{int(val_avg_acc * 1e4)}"
+                )
                 self.save_checkpoint(new_ckp_name)
                 self.save_checkpoint(new_ckp_name, mode="original")
                 train_logs["ckp_flags"].append(
@@ -424,7 +472,7 @@ class SetupTrainer:
                 keep_file_delete_others(org_dir, final_org_path)
                 convert_torch_to_onnx(
                     final_org_path,
-                    img_size=self.dataloaders["train"].dataset.target_shape
+                    img_size=self.dataloaders["train"].dataset.target_shape,
                 )
 
         if len(ckp_flag_arr) > 0:
@@ -435,10 +483,13 @@ class SetupTrainer:
             if len(ckp_path) > 0:
                 final_ckp_path = ckp_path[0]
                 keep_file_delete_others(jit_dir, final_ckp_path)
-                test_results = inference(self.dataloaders["test"],
-                                         final_ckp_path, self.exp_path,
-                                         use_cuda=False,
-                                         save_results=False)
+                test_results = inference(
+                    self.dataloaders["test"],
+                    final_ckp_path,
+                    self.exp_path,
+                    use_cuda=False,
+                    save_results=False,
+                )
                 train_logs["inference_cpu"] = test_results[0]
                 train_logs["test_iou_mean"] = float(test_results[1].mean())
                 train_logs["test_dice_mean"] = float(test_results[2].mean())
@@ -449,9 +500,13 @@ class SetupTrainer:
 
                 # Run inference using gpu only it is available
                 if torch.cuda.is_available():
-                    test_results = inference(self.dataloaders["test"],
-                                             final_ckp_path, self.exp_path,
-                                             use_cuda=True, save_results=True)
+                    test_results = inference(
+                        self.dataloaders["test"],
+                        final_ckp_path,
+                        self.exp_path,
+                        use_cuda=True,
+                        save_results=True,
+                    )
                     train_logs["inference_gpu"] = test_results[0]
 
                     # Testing divided groups with CUDA device

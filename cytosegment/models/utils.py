@@ -24,29 +24,31 @@ def convert_torch_to_onnx(torch_ckp_path, img_size):
     onnx_path = Path(torch_ckp_path).with_suffix(".onnx")
 
     batch_size = 8
-    dummy_input = torch.randn(batch_size, 1, img_size[0], img_size[1],
-                              requires_grad=True)
+    dummy_input = torch.randn(
+        batch_size, 1, img_size[0], img_size[1], requires_grad=True
+    )
     dummy_input = dummy_input.to(cuda_device, dtype=torch.float32)
 
     # Export the model
-    torch.onnx.export(model,  # model being run
-                      # model input (or a tuple for multiple inputs)
-                      dummy_input,
-                      # where to save the model (can be a file-like object)
-                      str(onnx_path),
-                      # store the trained  weights inside the model file
-                      export_params=True,
-                      # the ONNX version to export the model to
-                      opset_version=11,
-                      # whether to execute constant folding for optimization
-                      do_constant_folding=True,
-                      # the model's input names
-                      input_names=["input"],
-                      # the model's output names
-                      output_names=["output"],
-                      # variable length axes
-                      dynamic_axes={"input": {0: "batch_size"},
-                                    "output": {0: "batch_size"}})
+    torch.onnx.export(
+        model,  # model being run
+        # model input (or a tuple for multiple inputs)
+        dummy_input,
+        # where to save the model (can be a file-like object)
+        str(onnx_path),
+        # store the trained  weights inside the model file
+        export_params=True,
+        # the ONNX version to export the model to
+        opset_version=11,
+        # whether to execute constant folding for optimization
+        do_constant_folding=True,
+        # the model's input names
+        input_names=["input"],
+        # the model's output names
+        output_names=["output"],
+        # variable length axes
+        dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
+    )
 
 
 def init_weights(net, init_type="HeNormal", gain=0.02):
@@ -73,16 +75,19 @@ def init_weights(net, init_type="HeNormal", gain=0.02):
             elif init_type == "xavier":
                 init.xavier_normal_(m.weight.data, gain=gain)
             elif init_type == "HeNormal":
-                init.kaiming_normal_(m.weight.data, mode="fan_in",
-                                     nonlinearity="relu")
+                init.kaiming_normal_(
+                    m.weight.data, mode="fan_in", nonlinearity="relu"
+                )
             elif init_type == "HeUniform":
-                init.kaiming_uniform_(m.weight.data, mode="fan_in",
-                                      nonlinearity="relu")
+                init.kaiming_uniform_(
+                    m.weight.data, mode="fan_in", nonlinearity="relu"
+                )
             elif init_type == "orthogonal":
                 init.orthogonal_(m.weight.data, gain=gain)
             else:
                 raise NotImplementedError(
-                    "init method [%s] is not implemented" % init_type)
+                    "init method [%s] is not implemented" % init_type
+                )
             if hasattr(m, "bias") and m.bias is not None:
                 init.constant_(m.bias.data, 0.0)
         elif classname.find("BatchNorm2d") != -1:
@@ -93,8 +98,9 @@ def init_weights(net, init_type="HeNormal", gain=0.02):
     return net.apply(init_func)
 
 
-def summary(model, input_size, batch_size=-1,
-            device=torch.device("cpu"), dtypes=None):
+def summary(
+    model, input_size, batch_size=-1, device=torch.device("cpu"), dtypes=None
+):
     # Bring model to CPU device
     model = model.cpu()
     if dtypes is None:
@@ -131,9 +137,8 @@ def summary(model, input_size, batch_size=-1,
                 )
             summary[m_key]["nb_params"] = params
 
-        if (
-                not isinstance(module, nn.Sequential)
-                and not isinstance(module, nn.ModuleList)
+        if not isinstance(module, nn.Sequential) and not isinstance(
+            module, nn.ModuleList
         ):
             hooks.append(module.register_forward_hook(hook))
 
@@ -142,8 +147,10 @@ def summary(model, input_size, batch_size=-1,
         input_size = [input_size]
 
     # batch_size of 2 for batchnorm
-    x = [torch.rand(2, *in_size).type(dtype).to(device=device)
-         for in_size, dtype in zip(input_size, dtypes)]
+    x = [
+        torch.rand(2, *in_size).type(dtype).to(device=device)
+        for in_size, dtype in zip(input_size, dtypes)
+    ]
 
     # create properties
     summary = OrderedDict()
@@ -161,7 +168,8 @@ def summary(model, input_size, batch_size=-1,
 
     summary_str += "-" * 64 + "\n"
     line_new = "{:>20}  {:>25} {:>15}".format(
-        "Layer (type)", "Output Shape", "Param #")
+        "Layer (type)", "Output Shape", "Param #"
+    )
     summary_str += line_new + "\n"
     summary_str += "=" * 64 + "\n"
     total_params = 0
@@ -183,10 +191,11 @@ def summary(model, input_size, batch_size=-1,
         summary_str += line_new + "\n"
 
     # assume 4 bytes/number (float on cuda).
-    total_input_size = abs(np.prod(sum(input_size, ()))
-                           * batch_size * 4. / (1024 ** 2.))
-    total_out_size = abs(2. * total_output * 4. / (1024 ** 2.))
-    total_params_size = abs(total_params * 4. / (1024 ** 2.))
+    total_input_size = abs(
+        np.prod(sum(input_size, ())) * batch_size * 4.0 / (1024**2.0)
+    )
+    total_out_size = abs(2.0 * total_output * 4.0 / (1024**2.0))
+    total_params_size = abs(total_params * 4.0 / (1024**2.0))
     total_size = total_params_size + total_out_size + total_input_size
     non_train_params = total_params - trainable_params
 

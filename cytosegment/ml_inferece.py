@@ -1,19 +1,19 @@
-from ast import literal_eval as asteval
 import time
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import numpy as np
+from ast import literal_eval as asteval
 from pathlib import Path
-from skimage.measure import find_contours
+
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import yaml
+from skimage.measure import find_contours
 
-from .ml_metrics import IoUCoeff, DiceCoeff
+from .ml_metrics import DiceCoeff, IoUCoeff
 
 
 def load_model(ckp_path_jit, use_cuda):
-    """ Load a PyTorch model from a JIT checkpoint file and its associated
+    """Load a PyTorch model from a JIT checkpoint file and its associated
     metadata.
 
     Parameters
@@ -36,8 +36,9 @@ def load_model(ckp_path_jit, use_cuda):
     # Define a mapping dict to load model metadata
     extra_files = {"meta": ""}
     # Load model and its metadata
-    model_jit = torch.jit.load(ckp_path_jit, _extra_files=extra_files,
-                               map_location=device)
+    model_jit = torch.jit.load(
+        ckp_path_jit, _extra_files=extra_files, map_location=device
+    )
     model_meta = None
     # check if model checkpoint has any metadata
     if extra_files["meta"]:
@@ -51,8 +52,13 @@ def load_model(ckp_path_jit, use_cuda):
     return model_jit, model_meta
 
 
-def inference(test_dataloader, model_path, results_path, use_cuda=True,
-              save_results=False):
+def inference(
+    test_dataloader,
+    model_path,
+    results_path,
+    use_cuda=True,
+    save_results=False,
+):
     params_path = yaml.safe_load(open(results_path / "train_params.yaml"))
     data_path = Path(params_path["dataset"]["data_path"]).with_suffix("")
     test_data = data_path / "testing" / "images"
@@ -153,6 +159,7 @@ def inference(test_dataloader, model_path, results_path, use_cuda=True,
 
             fig.tight_layout()
             fig.savefig(
-                out_path / f"{im_name}_iou_{iou:.1f}_dice_{dice:.1f}.png")
+                out_path / f"{im_name}_iou_{iou:.1f}_dice_{dice:.1f}.png"
+            )
             plt.close()
     return inf_time_per_img, iou_scores, dice_scores, im_file_names

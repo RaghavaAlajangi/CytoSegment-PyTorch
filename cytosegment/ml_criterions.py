@@ -78,8 +78,9 @@ class DiceLoss(nn.Module):
         targets = targets.view(-1)
 
         intersection = (predicts * targets).sum()
-        dice = (2. * intersection + self.eps) / (
-                predicts.sum() + targets.sum() + self.eps)
+        dice = (2.0 * intersection + self.eps) / (
+            predicts.sum() + targets.sum() + self.eps
+        )
 
         return 1 - dice
 
@@ -104,8 +105,9 @@ class DiceBCELoss(nn.Module):
         targets = targets.view(-1)
 
         intersection = (predicts * targets).sum()
-        dice_loss = 1 - (2. * intersection + self.eps) / (
-                predicts.sum() + targets.sum() + self.eps)
+        dice_loss = 1 - (2.0 * intersection + self.eps) / (
+            predicts.sum() + targets.sum() + self.eps
+        )
         bce = fuc.binary_cross_entropy(predicts, targets, reduction="mean")
         return bce + dice_loss
 
@@ -207,8 +209,9 @@ class TverskyLoss(nn.Module):
         fp = ((1 - targets) * predicts).sum()
         fn = (targets * (1 - predicts)).sum()
 
-        tversky = (tp + self.eps) / (tp + self.alpha * fp +
-                                     self.beta * fn + self.eps)
+        tversky = (tp + self.eps) / (
+            tp + self.alpha * fp + self.beta * fn + self.eps
+        )
         return 1 - tversky
 
 
@@ -222,7 +225,7 @@ class FocalTverskyLoss(nn.Module):
     def __init__(self, alpha=0.3, gamma=2):
         super(FocalTverskyLoss, self).__init__()
         self.alpha = alpha
-        self.gamma = 1/gamma
+        self.gamma = 1 / gamma
         self.eps = 1e-7
 
     def forward(self, predicts, targets):
@@ -237,7 +240,8 @@ class FocalTverskyLoss(nn.Module):
         tp = (predicts * targets).sum()
         fn = ((1 - targets) * predicts).sum()
         fp = (targets * (1 - predicts)).sum()
-        tversky = (tp + self.eps) / (self.eps + tp + self.alpha * fp +
-                                     (1 - self.alpha) * fn)
+        tversky = (tp + self.eps) / (
+            self.eps + tp + self.alpha * fp + (1 - self.alpha) * fn
+        )
         focal_tversky = (1 - tversky) ** self.gamma
         return focal_tversky
