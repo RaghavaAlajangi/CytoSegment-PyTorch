@@ -1,56 +1,13 @@
-# CytoSegment-PyTorch
-
-This repo has a Python code to train deep learning models for semantic segmentation of cytometry image data. It is designed to support researchers and practitioners working with microscopic biological imagery—especially blood cells—by providing reliable tools for training, and evaluating segmentation models.
-
-#### Optimized Version
-- Note: This repository contains the exact code version used to produce the results published in the paper [Small U-Net for Fast and Reliable Segmentation in Imaging Flow Cytometry].
-
-- An optimized and installable version of this code is available at: [cytosegment](https://github.com/RaghavaAlajangi/cytosegment)
-
-#### Install in editable mode
-
-1. Clone the project:  
-```bash
-git clone git@github.com:RaghavaAlajangi/CytoSegment-PyTorch.git
-```
-
-2. Go to the project directory:
-```bash
-cd cytosegment
-```
-
-3. Install the project in editable mode:  
-```bash
-pip install -e .
-```
-
-4. Usage:
-```bash
-python -m cytosegment --params_path <params.yaml file>
-```
-
-
-
-# Model training
-
-## Locally:
-
-Change the required parameters in `params/unet_params.yaml` file and then run the below command for training
-
-Note: Please note that in this file, you have the option to define a list of 
-parameters for each entry, allowing the generation of all conceivable combinations.
-
-```bash
 model:
-  type: [UNetTunable]
+  type: [TunableUNet]
   in_channels: [1]
   out_classes: [1]
   conv_block: [double]
   depth: [2]
-  filters: [3]
-  dilation: [1]
+  filters: [1]  # 2 power filters (2**3)
+  dilation: [1]  # Options: 1 (no dilation), 2, 3, 4
   batch_norm: [True]
-  dropout: [0.1]                # Options: in the range of [0.1, 0.9]
+  dropout: [0]                  # Options: in the range of [0.1, 0.9]
   up_mode: [upconv]             # Options: upconv, upsample
   attention: [False]
   relu: [True]
@@ -58,12 +15,12 @@ model:
 
 dataset:
   type: [PNG]
-  data_path: [your data path]
+  data_path: [data/naiad1_30um_channel_resized_80_320.zip]
+#  data_path: [data/training_testing_set_w_beads_and_enrichment.zip]
   # "min_max" = True: minimum and maximum pixel values of each image will be
   # used to normalize the dataset. Otherwise, 255 will be used to divide each
   # and every image in the dataset
-  img_size: [[64, 256]]
-  min_max: [False]
+  img_size: [[80,320]]
   augmentation: [True]
   valid_size: [0.15]
   batch_size: [8]
@@ -74,13 +31,23 @@ dataset:
   # If there is a change in the dataset (either inclusion or exclusion of
   # image and mask pairs into the dataset), we need to recalculate the mean
   # and std values of the dataset again.
-  mean: [0.48748]
-  std: [0.08355]
+
+  # Mean and std values for enriched dataset - with beads
+#  mean: [0.498]
+#  std: [0.086]
+
+  # Mean and std values for enriched dataset - without beads
+#  mean: [0.487]
+#  std: [0.084]
+
+  # Mean and std values of Naiad data
+  mean: [ 0.519 ]
+  std: [ 0.072 ]
 
   random_seed: [42]
   # how many subprocesses to use for data loading. 0 means that the data
   # will be loaded in the main process.
-  num_workers: [0]
+  num_workers: [8]
 
 criterion:
   type: [FocalTverskyLoss]
@@ -89,11 +56,12 @@ criterion:
 
 metric:
   type: [DiceCoeff]
+#  type: [IouCoeff]
 
 
 optimizer:
   type: [Adam]
-  learn_rate: [0.001]
+  learn_rate: [0.01]
 
 # Decays the learning rate by ``lr_decay_rate`` every ``patience``
 # epochs. Sometimes model might be ended up within local minima because
@@ -110,11 +78,11 @@ scheduler:
 others:
   max_epochs: [200]
   use_cuda: [False]
-  path_out: [test]
+  path_out: [experiments]
 
   # Trainer start saving checkpoints only after the validation
   # accuracy is higher than  'min_ckp_acc'
-  min_ckp_acc: [0.96]
+  min_ckp_acc: [0.80]
 
   # If the model metric (validation loss) starts increasing,
   # 'early stopping' will count the n consequent epochs (patience).
@@ -130,39 +98,7 @@ others:
   # Specify whether results should be saved with tensorboard
   tensorboard: [False]
 
-# These parameters are helpful if you submit jobs on the HPC cluster for:
-# 1. job notification
-# 2. job memory and time requirements
 hpc_params:
-  mail_id: your email address
-  max_mem_GB: 5
-  max_time_hours: 1
-
-
-```
-
-```bash
-# Train models locally
-python job_handler.py --local
-```
-
-
-
-## On HPC:
-1. Clone the repository on HPC (`login is required with access token`)
-```bash
-git clone git@github.com:RaghavaAlajangi/CytoSegment-PyTorch.git
-```
-2. change required parameters in `params/unet_params.yaml`. Especially,
-```bash
-- num_workers -->  to 8
-- use_cuda --> True
-- hpc_params:
-    mail_id --> mail ID
-```
-
-5. Run the jobs
-```bash
-python job_handler.py --slurm
-```
-6. Copy the experiments (trained models) from HPC to local drive
+  mail_id: raghava.alajangi@mpl.mpg.de
+  max_mem_GB: 10
+  max_time_hours: 00:30:00  # hh:mm:ss

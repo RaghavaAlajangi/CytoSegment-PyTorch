@@ -1,0 +1,83 @@
+model:
+  type: "UNetTunable"
+  in_channels: 1
+  out_classes: 1
+  bilinear: False
+  depth: 2
+  filters: 2
+  dilation: 1
+  dropout: False
+  up_mode: 'upconv'
+  with_attn: False
+
+dataset:
+  type: "PNG"
+  data_path: ./tests/data/dataset
+  augmentation: False
+  valid_size: 0.1
+  batch_size: 2
+#  mean: [0.67709]
+#  std: [0.13369]
+
+  # Mean and std values for the whole dataset should be computed before
+  # starting the training using 'unet/dataset_utils/compute_mean_std.py'
+  # script. The computed values can be used during the model inference.
+  # If there is a change in the dataset (either inclusion or exclusion of
+  # image and mask pairs into the dataset), we need to recalculate the mean
+  # and std values of the dataset.
+  mean: [0.67709]
+  std: [0.13369]
+  # how many subprocesses to use for data loading. 0 means that the data
+  # will be loaded in the main process.
+  num_workers: 0
+  # 'num_samples' is useful for testing. Irrespective of the number of
+  # samples available in the dataset, It takes only a specific number
+  # of samples from the dataset to run the test pipeline.
+  num_samples: 6
+
+criterion:
+  type: "FocalTverskyLoss"
+  alpha: 0.3
+  beta: 0.7
+  gamma: 0.75
+
+metric:
+  type: "IoUCoeff"
+
+optimizer:
+  type: "Adam"
+  learn_rate: 0.001
+
+# Decays the learning rate by ``lr_decay_rate`` every ``lr_step_size``
+# epochs. Sometimes model might be ended up within local minima because
+# of the high learning rate. A scheduler will help the model overcome
+# this by minimizing the learning rate progressively.
+
+# NOTE: instead of using step based scheduler, the adaptive scheduler
+# could be more effective to get optimal results.
+scheduler:
+  type: "stepLR"
+  lr_step_size: 10
+  lr_decay_rate: 0.1
+
+max_epochs: 2
+use_cuda: False
+path_out: "experiments"
+
+# Trainer start saving checkpoints only after the validation
+# accuracy is higher than  'min_ckp_acc'
+min_ckp_acc: 0.60
+
+# If the model metric (validation loss) starts increasing,
+# 'early stopping' will count the n consequent epochs (patience).
+# If still there is no improvement (after patience) training will
+# be terminated automatically. It saves computational power by
+# discarding the unnecessary epochs.
+early_stop_patience: 10
+
+# Start the training where you left by providing
+# previous checkpoint (not jit) path
+init_from_ckp: null
+
+# Specify whether results should be saved with tensorboard
+tensorboard: False
